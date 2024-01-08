@@ -1,4 +1,4 @@
-from tkinter import Image, messagebox, END
+from tkinter import Image, messagebox, END, Frame, Label
 import ttkbootstrap
 from ttkbootstrap.constants import *
 from PIL import ImageTk, Image, ImageDraw, ImageFont
@@ -19,22 +19,23 @@ class MainFrame(ttkbootstrap.Frame):
     # --------------------------------------------------------------
     def start_test(self):
         self.typing_word = TypingWord(self.win, self.current_lan)
-        self.result_frm = ResultFrame(self, self.typing_word, self.start_test, self.taggle_language)
-        self.result_frm.grid(row=0, column=0, pady=(30,3), sticky='nsew')
+        self.result_frm = ResultFrame(self, self.typing_word, self.start_test, self.finish_test, self.taggle_language)
+        self.result_frm.grid(row=0, column=0, pady=(10,3), sticky=NSEW)
         
-        self.new_words_frm = ttkbootstrap.Frame(self, border=True, borderwidth=2, relief=GROOVE)
-        self.new_words_frm.grid(row=1, column=0, pady=(10,0), sticky='nsew')
+        self.new_words_frm = ttkbootstrap.Frame(self)#, border=True, borderwidth=2, relief=GROOVE)
+        self.new_words_frm.grid(row=1, column=0, pady=(10,0), sticky=NSEW)
         self.showing_all_words = ShowingAllWords(self.new_words_frm, self.typing_word)
-        self.showing_all_words.grid(row=0, column=0, sticky='nsew')
+        self.showing_all_words.grid(row=0, column=0, sticky=NSEW)
 
         self.text_entry = TextEntry(self, self.typing_word, self.start_timer)
-        self.text_entry.grid(row=2, column=0, sticky='nsew')
+        self.text_entry.configure(width=500)
+        self.text_entry.grid(row=2, column=0, sticky=NSEW)
         self.text_entry.bind('Key', self.start_timer)
 
         self.update_idletasks()
-        self.grid(row=1, column=0, padx=int((self.win.winfo_screenwidth() - self.winfo_reqwidth())/2), pady=10, sticky='nsew')
+        self.grid(row=1, column=0, padx=int((self.win.winfo_screenwidth() - self.winfo_reqwidth())/2), pady=10, sticky=NSEW)
         self.result_frm.grid(row=0, column=0, padx=int((self.winfo_reqwidth() - self.result_frm.winfo_reqwidth())/2), sticky=NSEW)
-        self.showing_all_words.grid(row=0, column=0, padx=int((self.winfo_reqwidth() - self.showing_all_words.winfo_reqwidth())/2), sticky='nsew')
+        self.showing_all_words.grid(row=0, column=0, padx=int((self.winfo_reqwidth() - self.showing_all_words.winfo_reqwidth())/2), sticky=NSEW)
 
     def taggle_language(self, lan):   
         self.current_lan = lan
@@ -45,6 +46,8 @@ class MainFrame(ttkbootstrap.Frame):
 
     def start_timer(self, event):
         self.text_entry.ent.configure(state=NORMAL)
+        self.result_frm.restart_btn.configure(state=NORMAL)
+        self.result_frm.exit_btn.configure(state=NORMAL)
         if not self.typing_word.is_test_running:
             self.typing_word.start_time = time.time()
             self.typing_word.is_test_running = True
@@ -95,22 +98,27 @@ class MainFrame(ttkbootstrap.Frame):
         else:
             self.finish_test()
 
+    def save_record(self, time, wpm, cpm):
+        for item in LANGUAGES:
+            if item == self.current_lan:
+                item['records'].append({'time':time, 'wpm':wpm, 'cpm':cpm})
+
     def finish_test(self):
         if self.typing_word.is_test_running and self.typing_word.current_word_index != 0:
             elapsed_time = 60 - self.typing_word.time_left
             wpm = int(self.typing_word.current_word_index / elapsed_time * 60)
             cpm = int(len(self.typing_word.correct_characters) / elapsed_time * 60)
+            current_time = dt.now().strftime('%H:%m:%S')
 
             self.result_frm.corrected_wpm.configure(text=wpm)
             self.result_frm.corrected_cpm.configure(text=cpm)
-            self.result_frm.score_lb.configure(text=f'{CURRENT_TIME}, {cpm} CPM ({wpm} WPM)')
+            self.result_frm.score_lb.configure(text=f'{current_time}, {cpm} CPM ({wpm} WPM)')
 
             self.typing_word.is_test_running = False
             self.typing_word.current_input.set(self.typing_word.lan_setting['msg3'])
             self.text_entry.ent.configure(state=DISABLED)
 
-    def restart(self):
-        pass
+            self.save_record(current_time, wpm, cpm)
 
 
 class TypingWord():
@@ -140,45 +148,52 @@ class TypingWord():
 
 
 class ResultFrame(ttkbootstrap.Frame):
-    def __init__(self, win, typing_word, start_test, taggle_language): 
+    def __init__(self, win, typing_word, start_test, finish_test, taggle_language): 
         super().__init__(win)
         self.columnconfigure((0,1,2), weight=1)
         self.rowconfigure((0,1,2), weight=1)
         self.cumulative_rows = 0
         self.typing_word = typing_word
     
-        ttkbootstrap.Label(self, text=self.typing_word.lan_setting['msg1'], font=(self.typing_word.lan_setting['font'], self.typing_word.lan_setting['font_size'][0]), anchor=CENTER).grid(row=0, column=0, columnspan=3, sticky='nsew')
-        ttkbootstrap.Label(self, text=self.typing_word.lan_setting['msg2'], font=(self.typing_word.lan_setting['font'], self.typing_word.lan_setting['font_size'][1]), anchor=CENTER).grid(row=1, column=1, sticky='nsew')
+        ttkbootstrap.Label(self, text=self.typing_word.lan_setting['msg1'], font=(self.typing_word.lan_setting['font'], self.typing_word.lan_setting['font_size'][0]), anchor=CENTER).grid(row=0, column=0, columnspan=3, sticky=NSEW)
+        ttkbootstrap.Label(self, text=self.typing_word.lan_setting['msg2'], font=(self.typing_word.lan_setting['font'], self.typing_word.lan_setting['font_size'][1]), anchor=CENTER).grid(row=1, column=1, sticky=NSEW)
         
         self.score_frm1 = ttkbootstrap.Frame(self, border=True, borderwidth=2, relief=GROOVE)
-        self.score_frm1.grid(row=2, column=0, columnspan=3, padx=250, pady=10, sticky='nsew')
-        self.score_lb = ttkbootstrap.Label(self.score_frm1, text=f'{CURRENT_TIME},   CPM (   WPM)', font=(self.typing_word.lan_setting['font'], self.typing_word.lan_setting['font_size'][0]))
-        self.score_lb.grid(row=0, column=0, columnspan=9, padx=100, pady=4, sticky='nsew')
+        self.score_frm1.grid(row=2, column=0, columnspan=3, padx=250, pady=(0,10), sticky=NSEW)
+        for item in LANGUAGES:
+            if item == self.typing_word.lan_setting:
+                if len(item['records']) == 0:
+                    self.score_lb = ttkbootstrap.Label(self.score_frm1, text=f'{CURRENT_TIME},  ?  CPM ( ?  WPM)', font=(self.typing_word.lan_setting['font'], self.typing_word.lan_setting['font_size'][0]))
+                else:
+                    self.score_lb = ttkbootstrap.Label(self.score_frm1, text=f'{item['records'][-1]['time']}, {item['records'][-1]['cpm']} CPM ({item['records'][-1]['wpm']} WPM)', font=(self.typing_word.lan_setting['font'], self.typing_word.lan_setting['font_size'][0]))
+        self.score_lb.grid(row=0, column=0, columnspan=9, padx=100, pady=4, sticky=NSEW)
 
         self.score_frm2 = ttkbootstrap.Frame(self)
-        self.score_frm2.grid(row=3, column=0, columnspan=9, padx=100, pady=(30,5), sticky='nsew')
+        self.score_frm2.grid(row=3, column=0, columnspan=9, padx=100, pady=(30,0), sticky=NSEW)
         ttkbootstrap.Label(self.score_frm2, text=self.typing_word.lan_setting['msg6']).grid(row=0, column=0, padx=(30,0))
-        self.corrected_cpm = ttkbootstrap.Label(self.score_frm2, text='   ', background='white', width=8, border=True, borderwidth=1, relief=GROOVE, anchor=CENTER)
-        self.corrected_cpm.grid(row=0, column=1, sticky='nsew')
+        self.corrected_cpm = ttkbootstrap.Label(self.score_frm2, text=' ? ', background='white', width=8, border=True, borderwidth=1, relief=GROOVE, anchor=CENTER)
+        self.corrected_cpm.grid(row=0, column=1, sticky=NSEW)
 
         ttkbootstrap.Label(self.score_frm2, text=self.typing_word.lan_setting['msg7']).grid(row=0, column=2, padx=2)
-        self.corrected_wpm = ttkbootstrap.Label(self.score_frm2, text='   ', background='white', width=8, border=True, borderwidth=1, relief=GROOVE, anchor=CENTER)
-        self.corrected_wpm.grid(row=0, column=3, sticky='nsew')
+        self.corrected_wpm = ttkbootstrap.Label(self.score_frm2, text=' ? ', background='white', width=8, border=True, borderwidth=1, relief=GROOVE, anchor=CENTER)
+        self.corrected_wpm.grid(row=0, column=3, sticky=NSEW)
 
         ttkbootstrap.Label(self.score_frm2, text=self.typing_word.lan_setting['msg8']).grid(row=0, column=4, padx=2)
         self.time_left = ttkbootstrap.Label(self.score_frm2, text=self.typing_word.time_left, background='white', width=8, border=True, borderwidth=1, relief=GROOVE, anchor=CENTER)
-        self.time_left.grid(row=0, column=5, sticky='nsew')
+        self.time_left.grid(row=0, column=5, sticky=NSEW)
 
         self.restart_btn = ttkbootstrap.Button(self.score_frm2, text=self.typing_word.lan_setting['msg9'], command=start_test, bootstyle='secondary-link', width=6, state=DISABLED)
-        self.restart_btn.grid(row=0, column=6, padx=(20,0))
+        self.restart_btn.grid(row=0, column=6, padx=(20,2))
+        self.exit_btn = ttkbootstrap.Button(self.score_frm2, text=self.typing_word.lan_setting['msg10'], command=finish_test, bootstyle='danger', width=4, state=DISABLED)
+        self.exit_btn.grid(row=0, column=7, padx=2)
             
         self.other_lans = [item for item in LANGUAGES if item != self.typing_word.lan_setting]
-        self.lan_btn1 = ttkbootstrap.Button(self.score_frm2, text=self.other_lans[0]['name'], command=lambda lan=self.other_lans[0]: taggle_language(lan), width=2, bootstyle='success-outline')
-        self.lan_btn1.grid(row=0, column=7, padx=2)
-        self.lan_btn2 = ttkbootstrap.Button(self.score_frm2, text=self.other_lans[1]['name'], command=lambda lan=self.other_lans[1]: taggle_language(lan), width=2, bootstyle='info-outline')
-        self.lan_btn2.grid(row=0, column=8, padx=2)
+        self.lan_btn1 = ttkbootstrap.Button(self.score_frm2, text=self.other_lans[0]['name'], command=lambda lan=self.other_lans[0]: taggle_language(lan), width=2, bootstyle='success-link') # 'success-outline'
+        self.lan_btn1.grid(row=0, column=8, padx=2)
+        self.lan_btn2 = ttkbootstrap.Button(self.score_frm2, text=self.other_lans[1]['name'], command=lambda lan=self.other_lans[1]: taggle_language(lan), width=2, bootstyle='info-link')
+        self.lan_btn2.grid(row=0, column=9, padx=2)
 
-class ShowingAllWords(ttkbootstrap.Frame): 
+class ShowingAllWords(Frame): 
     def __init__(self, win, typing_word, **kwargs): 
         super().__init__(win, **kwargs)
         self.columnconfigure((0,1,2), weight=1)
@@ -191,6 +206,7 @@ class ShowingAllWords(ttkbootstrap.Frame):
         self.user_input = self.typing_word.current_input.get().strip()
 
         self.d_font = ImageFont.truetype(font=self.current_lan['font'], size=self.current_lan['font_size'][2])
+        self.other_lans = [item for item in LANGUAGES if item != self.typing_word.lan_setting]
 
         self.words_by_row = []
         row_w = 0
@@ -208,17 +224,21 @@ class ShowingAllWords(ttkbootstrap.Frame):
                 row_words.append(word)
                 row_w += w
             else:
-                self.words_by_row.append({'words': row_words, 'width':row_w, 'photo': [], 'frm': ttkbootstrap.Frame(self)})
+                self.words_by_row.append({'words': row_words, 'width':row_w, 'photo': [], 'frm': Frame(self)})
                 row_words = [word]
                 row_w = 0
         if row_words:
-            self.words_by_row.append({'words': row_words, 'width':row_w, 'photo': [], 'frm': ttkbootstrap.Frame(self)})
-        self.max_row_w = max([item['width'] for item in self.words_by_row]) 
+            self.words_by_row.append({'words': row_words, 'width':row_w, 'photo': [], 'frm': Frame(self)})
+        
+        self.current_lan['max_row_w'] = max([item['width'] for item in self.words_by_row]) 
         self.load_photo()
 
     def load_photo(self):
+        word_h = max([item['word_h'] for item in LANGUAGES])
+        # row_w = max([item['max_row_w'] for item in LANGUAGES])
+
         for i in range (len(self.words_by_row)):
-            padx = int((self.max_row_w - self.words_by_row[i]['width'])/2)
+            padx = int((self.current_lan['max_row_w'] - self.words_by_row[i]['width'])/2) # self.current_lan['max_row_w']
             if self.current_word in self.words_by_row[i]['words']:
                 if i < 2:
                     self.words_by_row[0]['frm'].grid(row=0, column=0, padx=padx, pady=(15,0))
@@ -226,9 +246,9 @@ class ShowingAllWords(ttkbootstrap.Frame):
                     self.words_by_row[2]['frm'].grid(row=2, column=0, padx=padx, pady=(0,15))
                 else:
                     self.words_by_row[i-2]['frm'].grid_remove()
-                    self.words_by_row[i-1]['frm'].grid(row=0, column=0, padx=padx, pady=(10,0))
+                    self.words_by_row[i-1]['frm'].grid(row=0, column=0, padx=padx, pady=(15,0))
                     self.words_by_row[i]['frm'].grid(row=1, column=0, padx=padx, pady=10)
-                    self.words_by_row[i+1]['frm'].grid(row=2, column=0, padx=padx, pady=(0,10))
+                    self.words_by_row[i+1]['frm'].grid(row=2, column=0, padx=padx, pady=(0,15))
                  
             for col_no, word in enumerate(self.words_by_row[i]['words']):
                 if word == self.current_word:
@@ -246,32 +266,32 @@ class ShowingAllWords(ttkbootstrap.Frame):
                     else:
                         d_text_fill = COLOR_GROUP[0]['rgba'] # Black
 
-                txt = Image.new('RGBA', (80, 40))
+                txt = Image.new('RGBA', (80, word_h+10), bg_fill) # self.current_lan['word_h']
                 d_txt = ImageDraw.Draw(txt)
                 _, _, w, h = d_txt.textbbox((0,0), text=word , font=self.d_font)
                 added_space = 16
 
-                resized_txt = txt.resize((w+added_space, self.current_lan['word_h']+10))
+                resized_txt = txt.resize((w+added_space, word_h+10))
                 d_txt = ImageDraw.Draw(resized_txt)
-                d_txt.text((int((w+added_space)/2), int(self.current_lan['word_h']+10)/2), text=word , font=self.d_font, fill=d_text_fill, anchor='mm') # https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html
+                d_txt.text((int((w+added_space)/2), int(word_h+10)/2), text=word , font=self.d_font, fill=d_text_fill, anchor='mm') # https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html
 
-                txt_mask = Image.new('RGBA', (w+added_space, self.current_lan['word_h']+10), bg_fill)
+                txt_mask = Image.new('RGBA', (w+added_space, word_h+10), bg_fill)
                 d_mask = ImageDraw.Draw(txt_mask)
-                d_mask.rounded_rectangle((0, 0, w+added_space, self.current_lan['word_h']+10), radius=30, fill=bg_fill)
+                d_mask.rounded_rectangle((0, 0, w+added_space, word_h+10), radius=30, fill=bg_fill)
 
-                txt_mask.paste(resized_txt, (0, 0, w+added_space, self.current_lan['word_h']+10), resized_txt)
+                txt_mask.paste(resized_txt, (0, 0, w+added_space, word_h+10), resized_txt)
                 photo = ImageTk.PhotoImage(txt_mask)
                 self.words_by_row[i]['photo'].append(photo)
 
-                word_lb = ttkbootstrap.Label(self.words_by_row[i]['frm'], image=photo)
-                word_lb.grid(row=0, column=col_no, padx=0, pady=0, sticky=NSEW)  
+                word_lb = Label(self.words_by_row[i]['frm'], image=photo)
+                word_lb.grid(row=0, column=col_no)#, sticky=NSEW)  
     
 class TextEntry(ttkbootstrap.Frame): # https://docs.python.org/3/library/tkinter.ttk.html#ttk-styling
     def __init__(self, win, typing_word, start_test):
         super().__init__(win)
         self.typing_word = typing_word
 
-        self.ent = ttkbootstrap.Entry(self, textvariable=self.typing_word.current_input, foreground=COLOR_GROUP[6]['hex'], font=(typing_word.lan_setting['font'], typing_word.lan_setting['font_size'][2]), justify=CENTER) 
+        self.ent = ttkbootstrap.Entry(self, textvariable=self.typing_word.current_input, foreground=COLOR_GROUP[2]['hex'], font=(typing_word.lan_setting['font'], typing_word.lan_setting['font_size'][2]), justify=CENTER) 
         self.ent.pack(fill=X)
 
         self.ent.insert(0, typing_word.lan_setting['msg3'])
